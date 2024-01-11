@@ -1,0 +1,176 @@
+#!/usr/bin/env bash
+#
+# SPDX-License-Identifier: AGPL-3.0
+
+_path="$( \
+  export \
+    _OLDPWD="$(pwd)" && \
+    cd \
+      "$(dirname \
+           "${BASH_SOURCE[0]}")" && \
+    echo\
+      "$(pwd)" && \
+    cd "${_OLDPWD}")" && \
+    unset \
+      _OLDPWD
+
+app_name="$( \
+  basename \
+    "${BASH_SOURCE[0]}")"
+
+_globals() {
+  set -e -u
+  shopt -s extglob
+
+  # Control the environment
+  umask \
+    0022
+  export \
+    LC_ALL="C.UTF-8"
+  # LC_ALL=C.UTF-8, unlike LC_ALL=C, does not override LANGUAGE.
+  # See https://sourceware.org/bugzilla/show_bug.cgi?id=16621 \
+  # and https://savannah.gnu.org/bugs/?62815
+  [[ -v LANGUAGE ]] && \
+    unset \
+      LANGUAGE
+  [[ -v SOURCE_DATE_EPOCH ]] || \
+    printf \
+      -v \
+        SOURCE_DATE_EPOCH \
+        '%(%s)T' \
+        -1
+  export \
+    SOURCE_DATE_EPOCH
+  _override_verbose=""
+  _override_verbose=""
+  _out=""
+  _host=""
+  _user=""
+  _port=""
+  _verbose="false"
+}
+
+# Writes SSH configuration
+_ssh_conf() {
+  local \
+    _out="${1}" \
+    _host="${2}" \
+    _hostname="${3}" \
+    _user="${4}" \
+    _port="${5}" \
+    _out \
+    _cfg=()
+  _out="${HOME}/.config/dynssh/ssh.config"
+  _cfg=(
+    "Host ${_host}"
+    "  HostName ${_hostname}"
+    "  Port ${_port}"
+    "  IdentityFile ${HOME}/.ssh/${_host}"
+    "  User ${_user}"
+  )
+  printf \
+    '%s\n' \
+    "${_cfg[@]}" > \
+    "${_out}"
+  chmod \
+    700 \
+    "${_out}"
+}
+
+# Show help usage, with an exit status.
+# $1: exit status number.
+_usage() {
+    IFS='' read -r -d '' usagetext <<ENDUSAGETEXT || true
+usage: ${app_name} [options] <host> <hostname> <user> <port>
+  options:
+     -h               This message
+     -v               Enable verbose output
+
+  out:                Path of the resulting configuration file
+  host:               Name of the resulting host
+  hostname:           Address
+  user:               User to connect to
+  port:               Port to connect to
+ENDUSAGETEXT
+    printf \
+      '%s' \
+      "${usagetext}"
+    exit "${1}"
+}
+
+_msg_info() {
+  local \
+    _msg=()
+  _msg=(  
+    "$@"
+  )
+  if [[ "${_override_verbose}" == "true" ]]; then
+    printf \
+      '[%s] INFO: %s\n' \
+      "${app_name}" \
+      "${_msg[*]}" # >&2
+  fi
+  return
+}
+
+# Show an ERROR message then exit with status
+# $1: message string
+# $2: exit code number (with 0 does not exit)
+_msg_error() {
+  local \
+    _msg="${1}" \
+    _error="${2}"
+  printf \
+    '[%s] ERROR: %s\n' \
+    "${app_name}" \
+    "${_msg}" >&2
+  if (( _error > 0 )); then
+    exit \
+      "${_error}"
+  fi
+}
+
+_globals
+
+while getopts 'v:h?' arg; do
+  case "${arg}" in
+    v) _override_verbose="${OPTARG}" ;;
+    h|?) _usage 0 ;;
+    *)
+        _msg_error \
+          "Invalid argument '${arg}'" 0
+        _usage 0
+        ;;
+  esac
+done
+
+shift \
+  $((OPTIND - 1))
+
+if (( $# < 5 )); then
+  _msg_error \
+    "Missing argument." \
+    0
+  _usage 0
+fi
+
+_out="${1}"
+_host="${2}"
+_hostname="${3}"
+_user="${4}"
+_port="${5}"
+shift \
+  5
+_args=(
+  "$@"
+)
+
+_ssh_conf \
+  "${_out}" \
+  "${_host}" \
+  "${_hostname}" \
+  "${_user}" \
+  "${_port}" \
+  "${_args[@]}"
+
+# vim:set sw=2 sts=-1 et:
