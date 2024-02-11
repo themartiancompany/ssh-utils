@@ -60,7 +60,6 @@ _ssh_conf() {
     _port="${5}" \
     _out \
     _cfg=()
-  _out="${HOME}/.config/dynssh/ssh.config"
   _cfg=(
     "Host ${_host}"
     "  HostName ${_hostname}"
@@ -73,7 +72,7 @@ _ssh_conf() {
     "${_cfg[@]}" > \
     "${_out}"
   chmod \
-    700 \
+    400 \
     "${_out}"
 }
 
