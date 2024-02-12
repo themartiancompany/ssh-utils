@@ -2,34 +2,27 @@
 #
 # SPDX-License-Identifier: AGPL-3.0
 
-_path="$( \
-  export \
-    _OLDPWD="$(pwd)" && \
-    cd \
-      "$(dirname \
-           "${BASH_SOURCE[0]}")" && \
-    echo\
-      "$(pwd)" && \
-    cd "${_OLDPWD}")" && \
-    unset \
-      _OLDPWD
-
-app_name="$( \
-  basename \
-    "${BASH_SOURCE[0]}")"
-
 _globals() {
-  set -e -u
-  shopt -s extglob
+  local \
+    _OLDPWD
+  set \
+    -e \
+    -u
+  shopt \
+    -s \
+      extglob
 
   # Control the environment
   umask \
     0022
   export \
     LC_ALL="C.UTF-8"
-  # LC_ALL=C.UTF-8, unlike LC_ALL=C, does not override LANGUAGE.
-  # See https://sourceware.org/bugzilla/show_bug.cgi?id=16621 \
-  # and https://savannah.gnu.org/bugs/?62815
+  # LC_ALL=C.UTF-8, unlike LC_ALL=C,
+  # does not override LANGUAGE.
+  # See 
+  # https://sourceware.org/bugzilla/show_bug.cgi?id=16621
+  # and 
+  # https://savannah.gnu.org/bugs/?62815
   [[ -v LANGUAGE ]] && \
     unset \
       LANGUAGE
@@ -37,10 +30,36 @@ _globals() {
     printf \
       -v \
         SOURCE_DATE_EPOCH \
-        '%(%s)T' \
-        -1
+      '%(%s)T' \
+      -1
   export \
     SOURCE_DATE_EPOCH
+  
+  # Get script path
+  # shellcheck disable=SC2005
+  _path="$( \
+    _OLDPWD="$( \
+      pwd)" && \
+    export \
+      _OLDPWD && \
+    cd \
+      "$( \
+	dirname \
+          "${BASH_SOURCE[0]}")" && \
+    echo \
+      "$(pwd)" && \
+    cd \
+      "${_OLDPWD}" && \
+    unset \
+      _OLDPWD)"
+  unset \
+    _OLDPWD
+
+  # Set application name from the script's file name
+  app_name="${0##*/}"
+}
+
+_global_variables() {
   _override_verbose=""
   _override_verbose=""
   _out=""
@@ -130,6 +149,7 @@ _msg_error() {
 }
 
 _globals
+_global_variables
 
 while getopts 'v:h?' arg; do
   case "${arg}" in
