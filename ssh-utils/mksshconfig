@@ -145,7 +145,7 @@ _msg_error() {
   printf \
     '[%s] ERROR: %s\n' \
     "${app_name}" \
-    "${_msg}" >&2
+    "${_msg[*]}" >&2
   if (( _error > 0 )); then
     exit \
       "${_error}"
