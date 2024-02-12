@@ -6,7 +6,7 @@ DOC_DIR=$(DESTDIR)$(PREFIX)/share/doc/ssh-utils
 BIN_DIR=$(DESTDIR)$(PREFIX)/bin
 
 DOC_FILES=$(wildcard *.rst)
-SCRIPT_FILES=$(wildcard dynssh/*)
+SCRIPT_FILES=$(wildcard ssh-utils/*)
 
 all:
 
