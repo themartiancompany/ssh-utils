@@ -136,8 +136,12 @@ _msg_info() {
 # $2: exit code number (with 0 does not exit)
 _msg_error() {
   local \
-    _msg="${1}" \
-    _error="${2}"
+    _msg=() \
+    _error
+  _msg=(
+      "${1}"
+  )
+  _error="${2}"
   printf \
     '[%s] ERROR: %s\n' \
     "${app_name}" \
