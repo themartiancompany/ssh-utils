@@ -60,13 +60,12 @@ _globals() {
 }
 
 _global_variables() {
-  _override_verbose=""
-  _override_verbose=""
+  override_quiet="y"
   _out=""
   _host=""
   _user=""
   _port=""
-  _verbose="false"
+  quiet="y"
 }
 
 # Writes SSH configuration
@@ -88,7 +87,7 @@ _ssh_conf() {
   )
   printf \
     '%s\n' \
-    "${_cfg[*]}" > \
+    "${_cfg[@]}" > \
     "${_out}"
   chmod \
     600 \
@@ -99,7 +98,14 @@ _ssh_conf() {
 # $1: exit status number.
 _usage() {
     IFS='' read -r -d '' usagetext <<ENDUSAGETEXT || true
-usage: ${app_name} [options] <host> <hostname> <user> <port>
+usage:
+  ${app_name}
+    [options] 
+      <out>
+      <host>
+      <hostname>
+      <user>
+      <port>
   options:
      -h               This message
      -v               Enable verbose output
@@ -122,7 +128,7 @@ _msg_info() {
   _msg=(  
     "$@"
   )
-  if [[ "${_override_verbose}" == "true" ]]; then
+  if [[ "${override_quiet}" == "y" ]]; then
     printf \
       '[%s] INFO: %s\n' \
       "${app_name}" \
@@ -155,9 +161,9 @@ _msg_error() {
 _globals
 _global_variables
 
-while getopts 'v:h?' arg; do
+while getopts 'vh?' arg; do
   case "${arg}" in
-    v) _override_verbose="${OPTARG}" ;;
+    v) override_quiet="n" ;;
     h|?) _usage 0 ;;
     *)
         _msg_error \
@@ -169,7 +175,6 @@ done
 
 shift \
   $((OPTIND - 1))
-
 if (( $# < 5 )); then
   _msg_error \
     "Missing argument." \
