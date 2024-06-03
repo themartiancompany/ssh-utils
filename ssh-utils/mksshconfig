@@ -2,69 +2,24 @@
 #
 # SPDX-License-Identifier: AGPL-3.0
 
-_globals() {
-  local \
-    _OLDPWD
-  set \
-    -e \
-    -u
-  shopt \
-    -s \
-      extglob
-
-  # Control the environment
-  umask \
-    0022
-  export \
-    LC_ALL="C.UTF-8"
-  # LC_ALL=C.UTF-8, unlike LC_ALL=C,
-  # does not override LANGUAGE.
-  # See 
-  # https://sourceware.org/bugzilla/show_bug.cgi?id=16621
-  # and 
-  # https://savannah.gnu.org/bugs/?62815
-  [[ -v LANGUAGE ]] && \
-    unset \
-      LANGUAGE
-  [[ -v SOURCE_DATE_EPOCH ]] || \
-    printf \
-      -v \
-        SOURCE_DATE_EPOCH \
-      '%(%s)T' \
-      -1
-  export \
-    SOURCE_DATE_EPOCH
-  
-  # Get script path
-  # shellcheck disable=SC2005
-  _path="$( \
-    _OLDPWD="$( \
-      pwd)" && \
-    export \
-      _OLDPWD && \
-    cd \
-      "$( \
-	dirname \
-          "${BASH_SOURCE[0]}")" && \
-    echo \
-      "$(pwd)" && \
-    cd \
-      "${_OLDPWD}" && \
-    unset \
-      _OLDPWD)"
-  unset \
-    _OLDPWD
-
-  # Set application name from the script's file name
-  app_name="${0##*/}"
-}
+_bin="$( \
+  dirname \
+    "$( \
+      command \
+        -v \
+	  "env")")"
+_lib="${_bin}/../lib"
+_share="${_bin}/../share"
+source \
+  "${_lib}/libcrash-bash/crash-bash"
 
 _global_variables() {
   override_quiet="y"
-  _out=""
+  out_file=""
   _host=""
   _user=""
   _port=""
+  tor_transport=""
   quiet="y"
 }
 
@@ -76,6 +31,7 @@ _ssh_conf() {
     _hostname="${3}" \
     _user="${4}" \
     _port="${5}" \
+    _tor="${6}" \
     _out \
     _cfg=()
   _cfg=(
@@ -85,6 +41,17 @@ _ssh_conf() {
     "  IdentityFile ${HOME}/.ssh/${_host}"
     "  User ${_user}"
   )
+  if \
+    [[ "${_hostname}" == *".onion" ]] || \
+    [[ "${_tor}" == "true" ]]; then
+    _cfg=(
+      "Host ${_host}"
+      "  HostName ${_hostname}"
+      "  Port ${_port}"
+      "  IdentityFile ${HOME}/.ssh/${_host}"
+      "  User ${_user}"
+    )
+  fi
   printf \
     '%s\n' \
     "${_cfg[@]}" > \
@@ -107,6 +74,7 @@ usage:
       <user>
       <port>
   options:
+     -t               Explicitly enable tor transport
      -h               This message
      -v               Enable verbose output
 
@@ -122,47 +90,12 @@ ENDUSAGETEXT
     exit "${1}"
 }
 
-_msg_info() {
-  local \
-    _msg=()
-  _msg=(  
-    "$@"
-  )
-  if [[ "${override_quiet}" == "y" ]]; then
-    printf \
-      '[%s] INFO: %s\n' \
-      "${app_name}" \
-      "${_msg[*]}" # >&2
-  fi
-  return
-}
-
-# Show an ERROR message then exit with status
-# $1: message string
-# $2: exit code number (with 0 does not exit)
-_msg_error() {
-  local \
-    _msg=() \
-    _error
-  _msg=(
-      "${1}"
-  )
-  _error="${2}"
-  printf \
-    '[%s] ERROR: %s\n' \
-    "${app_name}" \
-    "${_msg[*]}" >&2
-  if (( _error > 0 )); then
-    exit \
-      "${_error}"
-  fi
-}
-
 _globals
 _global_variables
 
-while getopts 'vh?' arg; do
+while getopts 'tvh?' arg; do
   case "${arg}" in
+    t) override_tor_transport="y" ;;
     v) override_quiet="n" ;;
     h|?) _usage 0 ;;
     *)
@@ -182,11 +115,11 @@ if (( $# < 5 )); then
   _usage 0
 fi
 
-_out="${1}"
-_host="${2}"
-_hostname="${3}"
-_user="${4}"
-_port="${5}"
+out_file="${1}"
+target_host="${2}"
+target_hostname="${3}"
+target_user="${4}"
+target_port="${5}"
 shift \
   5
 _args=(
@@ -194,11 +127,11 @@ _args=(
 )
 
 _ssh_conf \
-  "${_out}" \
-  "${_host}" \
-  "${_hostname}" \
-  "${_user}" \
-  "${_port}" \
+  "${out_file}" \
+  "${target_host}" \
+  "${target_hostname}" \
+  "${target_user}" \
+  "${target_port}" \
   "${_args[@]}"
 
 # vim:set sw=2 sts=-1 et:
