@@ -68,11 +68,11 @@ _usage() {
 usage:
   ${app_name}
     [options] 
-      <out>
-      <host>
-      <hostname>
-      <user>
-      <port>
+      <out_file>
+      <target_host>
+      <target_hostname>
+      <target_user>
+      <target_port>
   options:
      -t               Explicitly enable tor transport
      -h               This message
@@ -127,11 +127,21 @@ _args=(
 )
 
 _ssh_conf \
-  "${out_file}" \
-  "${target_host}" \
-  "${target_hostname}" \
-  "${target_user}" \
-  "${target_port}" \
+  "$(_get \
+    "out" \
+    "file")" \
+  "$(_get \
+    "target" \
+    "host")" \
+  "$(_get \
+    "target" \
+    "hostname")" \
+  "$(_get \
+    "target" \
+    "user")" \
+  "$(_get \
+    "target" \
+    "port")" \
   "${_args[@]}"
 
 # vim:set sw=2 sts=-1 et:
