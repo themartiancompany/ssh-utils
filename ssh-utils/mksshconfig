@@ -16,11 +16,34 @@ source \
 _global_variables() {
   override_quiet="y"
   out_file=""
-  _host=""
-  _user=""
-  _port=""
-  tor_transport=""
+  target_host=""
+  target_hostname=""
+  target_user=""
+  target_port=""
+  proxy_command=""
+  proxy_address=""
+  proxy_port=""
+  proxy_command=""
+  color=""
   quiet="y"
+}
+
+_get_nc_cmd() {
+  local \
+    _address="${1}" \
+    _port="${2}" \
+    _cmd=()
+  _cmd=(
+      nc
+        -X
+          5
+        -x
+          "${_address}:${_port}"
+        "%h"
+        "%p"
+  )
+  echo \
+    "${_cmd[*]}"
 }
 
 # Writes SSH configuration
@@ -31,7 +54,9 @@ _ssh_conf() {
     _hostname="${3}" \
     _user="${4}" \
     _port="${5}" \
-    _tor="${6}" \
+    _proxy_address="${6}" \
+    _proxy_port="${7}" \
+    _proxy_command="${8}" \
     _out \
     _cfg=()
   _cfg=(
@@ -43,13 +68,13 @@ _ssh_conf() {
   )
   if \
     [[ "${_hostname}" == *".onion" ]] || \
-    [[ "${_tor}" == "true" ]]; then
-    _cfg=(
-      "Host ${_host}"
-      "  HostName ${_hostname}"
-      "  Port ${_port}"
-      "  IdentityFile ${HOME}/.ssh/${_host}"
-      "  User ${_user}"
+    [[ "${_proxy_address}" != "" ]]; then
+    _cfg+=(
+      "  VerifyHostKeyDNS no"
+      "  ProxyCommand $( \
+        _get_"${_proxy_command}"_cmd \
+          "${_proxy_address}" \
+          "${_proxy_port}")"
     )
   fi
   printf \
@@ -60,6 +85,32 @@ _ssh_conf() {
     600 \
     "${_out}"
 }
+
+_set_overrides() {
+  _set_override \
+    "proxy" \
+    "command" \
+    "nc"
+  _set_override \
+    "proxy" \
+    "address" \
+    ""
+  _set_override \
+    "proxy" \
+    "port" \
+    "9050"
+  if [[ -v override_color ]]; then
+    color="${override_color}"
+  elif [[ -z "${color}" ]]; then
+    color="n"
+  fi
+  if [[ -v override_quiet ]]; then
+    quiet="${override_quiet}"
+  elif [[ -z "${quiet}" ]]; then
+    quiet="y"
+  fi
+}
+
 
 # Show help usage, with an exit status.
 # $1: exit status number.
@@ -74,15 +125,19 @@ usage:
       <target_user>
       <target_port>
   options:
-     -t               Explicitly enable tor transport
+     -m               Proxy command
+     -p               Proxy address
+     -P               Proxy port
+                      Default: $(_get "proxy" "port")
      -h               This message
+     -c               Enable color output
      -v               Enable verbose output
 
-  out:                Path of the resulting configuration file
-  host:               Name of the resulting host
-  hostname:           Address
-  user:               User to connect to
-  port:               Port to connect to
+  out file:           Path of the resulting configuration file
+  target host         Name of the resulting host
+  target hostname     Address
+  target user:        User to connect to
+  target port:        Port to connect to
 ENDUSAGETEXT
     printf \
       '%s' \
@@ -93,9 +148,12 @@ ENDUSAGETEXT
 _globals
 _global_variables
 
-while getopts 'tvh?' arg; do
+while getopts 'm:p:P:vh?' arg; do
   case "${arg}" in
-    t) override_tor_transport="y" ;;
+    m) override_proxy_command="${OPTARG}" ;;
+    p) override_proxy_address="${OPTARG}" ;;
+    P) override_proxy_port="${OPTARG}" ;;
+    c) override_color="y" ;;
     v) override_quiet="n" ;;
     h|?) _usage 0 ;;
     *)
@@ -105,7 +163,6 @@ while getopts 'tvh?' arg; do
         ;;
   esac
 done
-
 shift \
   $((OPTIND - 1))
 if (( $# < 5 )); then
@@ -114,7 +171,6 @@ if (( $# < 5 )); then
     0
   _usage 0
 fi
-
 out_file="${1}"
 target_host="${2}"
 target_hostname="${3}"
@@ -125,7 +181,7 @@ shift \
 _args=(
   "$@"
 )
-
+_set_overrides
 _ssh_conf \
   "$(_get \
     "out" \
@@ -142,6 +198,15 @@ _ssh_conf \
   "$(_get \
     "target" \
     "port")" \
+  "$(_get \
+    "proxy" \
+    "address")" \
+  "$(_get \
+    "proxy" \
+    "port")" \
+  "$(_get \
+    "proxy" \
+    "command")" \
   "${_args[@]}"
 
 # vim:set sw=2 sts=-1 et:
