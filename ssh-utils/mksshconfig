@@ -24,6 +24,8 @@ _global_variables() {
   proxy_address=""
   proxy_port=""
   proxy_command=""
+  tunnel_local=""
+  tunnel_remote=""
   color=""
   quiet="y"
 }
@@ -57,6 +59,8 @@ _ssh_conf() {
     _proxy_address="${6}" \
     _proxy_port="${7}" \
     _proxy_command="${8}" \
+    _tunnel_local="${9}" \
+    _tunnel_remote="${10}" \
     _out \
     _cfg=()
   _cfg=(
@@ -66,6 +70,20 @@ _ssh_conf() {
     "  IdentityFile ${HOME}/.ssh/${_host}"
     "  User ${_user}"
   )
+  if \
+    [[ "${_tunnel_local}" != "" ]] || \
+    [[ "${_tunnel_remote}" != "" ]]; then
+    if \
+      [[ "${_tunnel_remote}" == "" ]]; then
+      _tunnel_remote="${_tunnel_local}"
+    fi
+    if [[ "${_tunnel_local}" == "" ]]; then
+      _tunnel_local="${_tunnel_remote}"
+    fi
+    _cfg+=(
+      "  RemoteForward ${_tunnel_local} localhost:${_tunnel_remote}"
+    )
+  fi
   if \
     [[ "${_hostname}" == *".onion" ]] || \
     [[ "${_proxy_address}" != "" ]]; then
@@ -99,6 +117,14 @@ _set_overrides() {
     "proxy" \
     "port" \
     "9050"
+  _set_override \
+    "tunnel" \
+    "local" \
+    ""
+  _set_override \
+    "tunnel" \
+    "remote" \
+    ""
   if [[ -v override_color ]]; then
     color="${override_color}"
   elif [[ -z "${color}" ]]; then
@@ -125,10 +151,14 @@ usage:
       <target_user>
       <target_port>
   options:
-     -m               Proxy command
-     -p               Proxy address
-     -P               Proxy port
-                      Default: $(_get "proxy" "port")
+     -m <proxy_command>   Proxy command
+     -p <proxy_address>   Proxy address
+     -P <proxy_port>      Proxy port
+                          Default: $(_get "proxy" "port")
+     -l <local_port>      Tunnel on given local port
+                          Default: '$(_get "tunnel" "local")'
+     -r <remote_port>     Tunnel on given remote port
+                          Default: '$(_get "tunnel" "remote")'
      -h               This message
      -c               Enable color output
      -v               Enable verbose output
@@ -148,11 +178,13 @@ ENDUSAGETEXT
 _globals
 _global_variables
 
-while getopts 'm:p:P:vh?' arg; do
+while getopts 'm:p:P:l:r:vh?' arg; do
   case "${arg}" in
     m) override_proxy_command="${OPTARG}" ;;
     p) override_proxy_address="${OPTARG}" ;;
     P) override_proxy_port="${OPTARG}" ;;
+    l) override_tunnel_local="${OPTARG}" ;;
+    r) override_tunnel_remote="${OPTARG}" ;;
     c) override_color="y" ;;
     v) override_quiet="n" ;;
     h|?) _usage 0 ;;
@@ -207,6 +239,12 @@ _ssh_conf \
   "$(_get \
     "proxy" \
     "command")" \
+  "$(_get \
+    "tunnel" \
+    "local")" \
+  "$(_get \
+    "tunnel" \
+    "remote")" \
   "${_args[@]}"
 
 # vim:set sw=2 sts=-1 et:
