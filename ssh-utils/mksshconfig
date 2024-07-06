@@ -141,7 +141,12 @@ _set_overrides() {
 # Show help usage, with an exit status.
 # $1: exit status number.
 _usage() {
-    IFS='' read -r -d '' usagetext <<ENDUSAGETEXT || true
+    IFS='' \
+    read \
+      -r \
+      -d \
+      '' \
+      usagetext <<ENDUSAGETEXT || true
 usage:
   ${app_name}
     [options] 
@@ -159,15 +164,15 @@ usage:
                           Default: '$(_get "tunnel" "local")'
      -r <remote_port>     Tunnel on given remote port
                           Default: '$(_get "tunnel" "remote")'
-     -h               This message
-     -c               Enable color output
-     -v               Enable verbose output
+     -h                   This message
+     -c                   Enable color output
+     -v                   Enable verbose output
 
-  out file:           Path of the resulting configuration file
-  target host         Name of the resulting host
-  target hostname     Address
-  target user:        User to connect to
-  target port:        Port to connect to
+  out file:               Path of the resulting configuration file
+  target host             Name of the resulting host
+  target hostname         Address
+  target user:            User to connect to
+  target port:            Port to connect to
 ENDUSAGETEXT
     printf \
       '%s' \
