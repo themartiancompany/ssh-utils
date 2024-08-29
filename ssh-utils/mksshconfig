@@ -81,7 +81,7 @@ _ssh_conf() {
       _tunnel_local="${_tunnel_remote}"
     fi
     _cfg+=(
-      "  RemoteForward ${_tunnel_local} localhost:${_tunnel_remote}"
+      "  LocalForward ${_tunnel_local} localhost:${_tunnel_remote}"
     )
   fi
   if \
