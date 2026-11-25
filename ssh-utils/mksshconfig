@@ -2,12 +2,11 @@
 #
 # SPDX-License-Identifier: AGPL-3.0
 
-_bin="$( \
+_bin="$(
   dirname \
-    "$( \
-      command \
+    "$(command \
         -v \
-	  "env")")"
+	"env")")"
 _lib="${_bin}/../lib"
 _share="${_bin}/../share"
 source \
@@ -26,6 +25,7 @@ _global_variables() {
   proxy_command=""
   tunnel_local=""
   tunnel_remote=""
+  strict_host_check=""
   color=""
   quiet="y"
 }
@@ -61,6 +61,7 @@ _ssh_conf() {
     _proxy_command="${8}" \
     _tunnel_local="${9}" \
     _tunnel_remote="${10}" \
+    _strict_host_check="${11}" \
     _out \
     _cfg=()
   _cfg=(
@@ -70,6 +71,11 @@ _ssh_conf() {
     "  IdentityFile ${HOME}/.ssh/${_host}"
     "  User ${_user}"
   )
+  if [[ "${_strict_host_check}" ]]; then
+    _cfg+=( 
+      "  StrictHostKeyChecking no"
+    )
+  fi
   if \
     [[ "${_tunnel_local}" != "" ]] || \
     [[ "${_tunnel_remote}" != "" ]]; then
@@ -89,7 +95,7 @@ _ssh_conf() {
     [[ "${_proxy_address}" != "" ]]; then
     _cfg+=(
       "  VerifyHostKeyDNS no"
-      "  ProxyCommand $( \
+      "  ProxyCommand $(
         _get_"${_proxy_command}"_cmd \
           "${_proxy_address}" \
           "${_proxy_port}")"
@@ -105,6 +111,16 @@ _ssh_conf() {
 }
 
 _set_overrides() {
+  if [[ -v override_color ]]; then
+    color="${override_color}"
+  elif [[ -z "${color}" ]]; then
+    color="n"
+  fi
+  if [[ -v override_quiet ]]; then
+    quiet="${override_quiet}"
+  elif [[ -z "${quiet}" ]]; then
+    quiet="y"
+  fi
   _set_override \
     "proxy" \
     "command" \
@@ -125,88 +141,111 @@ _set_overrides() {
     "tunnel" \
     "remote" \
     ""
-  if [[ -v override_color ]]; then
-    color="${override_color}"
-  elif [[ -z "${color}" ]]; then
-    color="n"
-  fi
-  if [[ -v override_quiet ]]; then
-    quiet="${override_quiet}"
-  elif [[ -z "${quiet}" ]]; then
-    quiet="y"
-  fi
+  _set_override \
+    "strict_host" \
+    "check" \
+    "no"
 }
-
 
 # Show help usage, with an exit status.
 # $1: exit status number.
 _usage() {
-    IFS='' \
-    read \
-      -r \
-      -d \
-      '' \
-      usagetext <<ENDUSAGETEXT || true
+  local \
+    _exit_code="${1}"
+  IFS='' \
+  read \
+    -r \
+    -d \
+    '' \
+    usagetext \
+  <<ENDUSAGETEXT || true
+
 usage:
   ${app_name}
     [options] 
       <out_file>
-      <target_host>
-      <target_hostname>
-      <target_user>
-      <target_port>
+      <target-host>
+      <target-hostname>
+      <target-user>
+      <target-port>
+
+  arguments:
+
+     out file:               Path of the resulting
+                             configuration file.
+     target host             Name of the resulting host.
+     target hostname         Target address or domain name
+                             or seed name.
+     target user:            User to connect to.
+     target port:            Port to connect to.
+
   options:
-     -m <proxy_command>   Proxy command
-     -p <proxy_address>   Proxy address
-     -P <proxy_port>      Proxy port
-                          Default: $(_get "proxy" "port")
-     -l <local_port>      Tunnel on given local port
-                          Default: '$(_get "tunnel" "local")'
-     -r <remote_port>     Tunnel on given remote port
-                          Default: '$(_get "tunnel" "remote")'
+
+     -m <proxy-command>   Proxy command
+     -p <proxy-address>   Proxy address
+     -P <proxy-port>      Proxy port
+                          Default: ${proxy_port}
+     -l <local-port>      Tunnel on given local port
+                          Default: '${tunnel_local}'
+     -r <remote-port>     Tunnel on given remote port
+                          Default: '${tunnel_remote}'
      -h                   This message
      -c                   Enable color output
      -v                   Enable verbose output
 
-  out file:               Path of the resulting configuration file
-  target host             Name of the resulting host
-  target hostname         Address
-  target user:            User to connect to
-  target port:            Port to connect to
 ENDUSAGETEXT
-    printf \
-      '%s' \
-      "${usagetext}"
-    exit "${1}"
+  printf \
+    '%s' \
+    "${usagetext}"
+  exit \
+    "${_exit_code}"
 }
 
 _globals
 _global_variables
 
-while getopts 'm:p:P:l:r:vh?' arg; do
+while \
+  getopts \
+    'm:p:P:l:r:vh?' arg; do
   case "${arg}" in
-    m) override_proxy_command="${OPTARG}" ;;
-    p) override_proxy_address="${OPTARG}" ;;
-    P) override_proxy_port="${OPTARG}" ;;
-    l) override_tunnel_local="${OPTARG}" ;;
-    r) override_tunnel_remote="${OPTARG}" ;;
-    c) override_color="y" ;;
-    v) override_quiet="n" ;;
-    h|?) _usage 0 ;;
+    m)
+      override_proxy_command="${OPTARG}" ;;
+    p)
+      override_proxy_address="${OPTARG}" ;;
+    P)
+      override_proxy_port="${OPTARG}" ;;
+    l)
+      override_tunnel_local="${OPTARG}" ;;
+    r)
+      override_tunnel_remote="${OPTARG}" ;;
+    c)
+      override_color="y" ;;
+    v)
+      override_quiet="n" ;;
+    h|?)
+      _usage 0 ;;
     *)
-        _msg_error \
-          "Invalid argument '${arg}'" 0
-        _usage 0
-        ;;
+      _msg=(
+        "Invalid argument '${arg}'."
+      )
+      _msg_error \
+        "${_msg[*]}" \
+        0
+        _usage \
+          0 ;;
   esac
 done
 shift \
   $((OPTIND - 1))
-if (( $# < 5 )); then
+if (( "$#" < 5 )); then
+  _msg=(
+    "Missing argument."
+  )
   _msg_error \
-    "Missing argument." \
+    "${_msg[*]}" \
     0
-  _usage 0
+  _usage \
+    0
 fi
 out_file="${1}"
 target_host="${2}"
@@ -215,41 +254,25 @@ target_user="${4}"
 target_port="${5}"
 shift \
   5
-_args=(
+command_args=(
   "$@"
+)
+app_opts+=(
+  "${out_file}"
+  "${target_host}"
+  "${target_hostname}"
+  "${target_user}"
+  "${target_port}"
+  "${proxy_address}"
+  "${proxy_port}"
+  "${proxy_command}"
+  "${tunnel_local}"
+  "${tunnel_remote}"
+  "${strict_host_check}"
+  "${command_args[@]}"
 )
 _set_overrides
 _ssh_conf \
-  "$(_get \
-    "out" \
-    "file")" \
-  "$(_get \
-    "target" \
-    "host")" \
-  "$(_get \
-    "target" \
-    "hostname")" \
-  "$(_get \
-    "target" \
-    "user")" \
-  "$(_get \
-    "target" \
-    "port")" \
-  "$(_get \
-    "proxy" \
-    "address")" \
-  "$(_get \
-    "proxy" \
-    "port")" \
-  "$(_get \
-    "proxy" \
-    "command")" \
-  "$(_get \
-    "tunnel" \
-    "local")" \
-  "$(_get \
-    "tunnel" \
-    "remote")" \
-  "${_args[@]}"
+  "${app_opts[@]}"
 
 # vim:set sw=2 sts=-1 et:
