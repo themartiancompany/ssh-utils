@@ -71,7 +71,7 @@ _ssh_conf() {
     "  IdentityFile ${HOME}/.ssh/${_host}"
     "  User ${_user}"
   )
-  if [[ "${_strict_host_check}" ]]; then
+  if [[ "${_strict_host_check}" == "n" ]]; then
     _cfg+=( 
       "  StrictHostKeyChecking no"
     )
@@ -144,7 +144,7 @@ _set_overrides() {
   _set_override \
     "strict_host" \
     "check" \
-    "no"
+    "n"
 }
 
 # Show help usage, with an exit status.
@@ -206,7 +206,7 @@ _global_variables
 
 while \
   getopts \
-    'm:p:P:l:r:vh?' arg; do
+    'm:p:P:l:r:S:vh?' arg; do
   case "${arg}" in
     m)
       override_proxy_command="${OPTARG}" ;;
@@ -218,6 +218,8 @@ while \
       override_tunnel_local="${OPTARG}" ;;
     r)
       override_tunnel_remote="${OPTARG}" ;;
+    S)
+      override_strict_host_check="${OPTARG}" ;;
     c)
       override_color="y" ;;
     v)
