@@ -160,10 +160,12 @@ _usage() {
     usagetext \
   <<ENDUSAGETEXT || true
 
+Generates an SSH configuration file programmatically.
+
 usage:
   ${app_name}
     [options] 
-      <out_file>
+      <out-file>
       <target-host>
       <target-hostname>
       <target-user>
